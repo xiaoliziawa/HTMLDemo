@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="zh">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>打胶游戏😋,打打你的胶</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            background-color: #f0f0f0;
+        }
+
+        #game-container {
+            text-align: center;
+        }
+
+        #game-board {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+            margin-top: 20px;
+        }
+
+        .hole {
+            width: 100px;
+            height: 100px;
+            background-color: #8B4513;
+            border-radius: 50%;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .mole {
+            width: 90px;
+            height: 90px;
+            background-color: #A52A2A;
+            border-radius: 50%;
+            position: absolute;
+            bottom: 100%;
+            left: 5px;
+            transition: bottom 0.1s;
+        }
+
+        .mole.active {
+            bottom: 5px;
+        }
+
+        button {
+            margin: 0 5px;
+            padding: 5px 10px;
+            cursor: pointer;
+        }
+
+        button.active {
+            background-color: #4CAF50;
+            color: white;
+        }
+
+        .settings {
+            margin-bottom: 10px;
+        }
+
+        .settings input {
+            width: 50px;
+            margin-right: 10px;
+        }
+    </style>
+</head>
+
+<body>
+    <div id="game-container">
+        <h1>🔨🦵🤌🥵</h1>
+        <div class="settings">
+            <label for="mole-speed">打🦵速度 (毫秒):</label>
+            <input type="number" id="mole-speed" value="1000" min="500" max="3000" step="100">
+            <label for="game-duration">打🦵时长 (秒):</label>
+            <input type="number" id="game-duration" value="30" min="10" max="120" step="5">
+        </div>
+        <div id="game-info">
+            <p>得分: <span id="score">0</span></p>
+            <p>时间: <span id="time-left">30</span>秒</p>
+        </div>
+        <div id="game-controls">
+            <button id="start-button">开始打🦵🥵</button>
+            <button id="pause-button" disabled>暂停打🦵😭</button>
+            <button id="resume-button" disabled>继续打🦵😋</button>
+            <button id="auto-whack-button">我超,这个入是纪!</button>
+        </div>
+        <div id="game-board"></div>
+    </div>
+
+    <script>
+        const gameBoard = document.getElementById('game-board');
+        const scoreElement = document.getElementById('score');
+        const timeLeftElement = document.getElementById('time-left');
+        const startButton = document.getElementById('start-button');
+        const pauseButton = document.getElementById('pause-button');
+        const resumeButton = document.getElementById('resume-button');
+        const autoWhackButton = document.getElementById('auto-whack-button');
+        const moleSpeedInput = document.getElementById('mole-speed');
+        const gameDurationInput = document.getElementById('game-duration');
+
+        let score = 0;
+        let timeLeft = parseInt(gameDurationInput.value);
+        let isPlaying = false;
+        let isPaused = false;
+        let isAutoWhacking = false;
+        let moles = [];
+        let gameInterval;
+        let moleInterval;
+        let autoWhackInterval;
+
+        function createMoles() {
+            for (let i = 0; i < 9; i++) {
+                const hole = document.createElement('div');
+                hole.className = 'hole';
+                const mole = document.createElement('div');
+                mole.className = 'mole';
+                hole.appendChild(mole);
+                gameBoard.appendChild(hole);
+                moles.push({ element: mole, isVisible: false });
+            }
+        }
+
+        function startGame() {
+            resetGame();
+            isPlaying = true;
+            startButton.disabled = true;
+            pauseButton.disabled = false;
+            moleSpeedInput.disabled = true;
+            gameDurationInput.disabled = true;
+            gameInterval = setInterval(updateGame, 1000);
+            moleInterval = setInterval(showRandomMole, parseInt(moleSpeedInput.value));
+        }
+
+        function resetGame() {
+            score = 0;
+            timeLeft = parseInt(gameDurationInput.value);
+            scoreElement.textContent = score;
+            timeLeftElement.textContent = timeLeft;
+            moles.forEach(mole => {
+                mole.isVisible = false;
+                mole.element.classList.remove('active');
+            });
+            clearInterval(gameInterval);
+            clearInterval(moleInterval);
+            clearInterval(autoWhackInterval);
+        }
+
+        function pauseGame() {
+            isPaused = true;
+            pauseButton.disabled = true;
+            resumeButton.disabled = false;
+            clearInterval(gameInterval);
+            clearInterval(moleInterval);
+            clearInterval(autoWhackInterval);
+        }
+
+        function resumeGame() {
+            isPaused = false;
+            pauseButton.disabled = false;
+            resumeButton.disabled = true;
+            gameInterval = setInterval(updateGame, 1000);
+            moleInterval = setInterval(showRandomMole, parseInt(moleSpeedInput.value));
+            if (isAutoWhacking) {
+                startAutoWhack();
+            }
+        }
+
+        function updateGame() {
+            if (timeLeft > 0) {
+                timeLeft--;
+                timeLeftElement.textContent = timeLeft;
+            } else {
+                endGame();
+            }
+        }
+
+        function showRandomMole() {
+            const visibleMoles = moles.filter(mole => mole.isVisible);
+            if (visibleMoles.length < 3) {
+                const availableMoles = moles.filter(mole => !mole.isVisible);
+                const randomMole = availableMoles[Math.floor(Math.random() * availableMoles.length)];
+                randomMole.isVisible = true;
+                randomMole.element.classList.add('active');
+                setTimeout(() => {
+                    randomMole.isVisible = false;
+                    randomMole.element.classList.remove('active');
+                }, parseInt(moleSpeedInput.value) * 1.5);
+            }
+        }
+
+        function whack(mole) {
+            if (mole.isVisible) {
+                mole.isVisible = false;
+                mole.element.classList.remove('active');
+                score++;
+                scoreElement.textContent = score;
+            }
+        }
+
+        function endGame() {
+            isPlaying = false;
+            startButton.disabled = false;
+            pauseButton.disabled = true;
+            resumeButton.disabled = true;
+            moleSpeedInput.disabled = false;
+            gameDurationInput.disabled = false;
+            clearInterval(gameInterval);
+            clearInterval(moleInterval);
+            clearInterval(autoWhackInterval);
+            alert(`打🦵结束! 您一共🐍了: ${score}次`);
+        }
+
+        function toggleAutoWhack() {
+            isAutoWhacking = !isAutoWhacking;
+            autoWhackButton.textContent = isAutoWhacking ? '拔出U盘' : '插上U盘(坚持与努力)';
+            autoWhackButton.classList.toggle('active');
+            if (isAutoWhacking && isPlaying && !isPaused) {
+                startAutoWhack();
+            } else {
+                clearInterval(autoWhackInterval);
+            }
+        }
+
+        function startAutoWhack() {
+            autoWhackInterval = setInterval(() => {
+                const visibleMoles = moles.filter(mole => mole.isVisible);
+                if (visibleMoles.length > 0) {
+                    const randomMole = visibleMoles[Math.floor(Math.random() * visibleMoles.length)];
+                    whack(randomMole);
+                }
+            }, 300);
+        }
+
+        createMoles();
+        startButton.addEventListener('click', startGame);
+        pauseButton.addEventListener('click', pauseGame);
+        resumeButton.addEventListener('click', resumeGame);
+        autoWhackButton.addEventListener('click', toggleAutoWhack);
+
+        moles.forEach(mole => {
+            mole.element.addEventListener('click', () => {
+                if (isPlaying && !isPaused) {
+                    whack(mole);
+                }
+            });
+        });
+    </script>
+</body>
+</html>
